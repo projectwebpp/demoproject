@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prisma | Creative Studio</title>
+    
+    <!-- Reliable Libraries (JSDelivr) -->
+    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/framer-motion@11.0.8/dist/framer-motion.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.363.0/dist/umd/lucide.min.js"></script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#DEDBC8' },
+                    fontFamily: {
+                        serif: ['"Instrument Serif"', 'serif'],
+                        sans: ['Almarai', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        html { scroll-behavior: smooth; }
+        * { font-family: 'Almarai', sans-serif; -webkit-font-smoothing: antialiased; }
+        body { background-color: #000000; color: #E1E0CC; margin: 0; overflow-x: hidden; }
+        .noise-overlay {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+        .bg-noise {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+        .font-serif { font-family: 'Instrument Serif', serif !important; font-style: italic; }
+        
+        /* Custom UI polish */
+        .nav-link { position: relative; transition: opacity 0.3s; }
+        .nav-link::after { 
+            content: ''; position: absolute; bottom: -2px; left: 0; width: 0; height: 1px; 
+            background: #DEDBC8; transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+        }
+        .nav-link:hover::after { width: 100%; }
+        
+        #root:empty::before {
+            content: "PRISMA STUDIO";
+            display: flex; align-items: center; justify-content: center; height: 100vh;
+            font-size: 14px; letter-spacing: 0.5em; color: #DEDBC8; opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        const h = React.createElement;
+        const { useRef, useState, useEffect, Fragment } = React;
+        const MotionGlobal = window.Motion || window.FramerMotion;
+        const { motion, useInView, useScroll, useTransform, AnimatePresence } = MotionGlobal;
+
+        // --- Icon Helper ---
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current && window.lucide) {
+                    window.lucide.createIcons({
+                        attrs: { stroke: "currentColor", "stroke-width": 2 },
+                        nameAttr: "data-lucide",
+                        icons: { [name]: window.lucide.icons[name] }
+                    });
+                }
+            }, [name, size]);
+            return h('i', { 'data-lucide': name, ref: iconRef, className, style: { width: size, height: size, display: 'inline-block' } });
+        };
+
+        const PULL_UP_TRANSITION = { type: "spring", damping: 12, stiffness: 100 };
+
+        // --- Components ---
+
+        const WordsPullUp = ({ text, className, showAsterisk, style }) => {
+            const ref = useRef(null);
+            const isInView = useInView(ref, { once: true, margin: "-100px" });
+            const words = text.split(" ");
+            return h(motion.div, {
+                ref, className, style: { display: "flex", flexWrap: "wrap", ...style },
+                initial: "hidden", animate: isInView ? "visible" : "hidden",
+                variants: { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } }
+            }, words.map((word, index) => 
+                h(motion.span, {
+                    key: index, className: "mr-[0.2em] relative",
+                    variants: { visible: { opacity: 1, y: 0, transition: { ...PULL_UP_TRANSITION, ease: [0.16, 1, 0.3, 1] } }, hidden: { opacity: 0, y: 20 } }
+                }, word, showAsterisk && index === words.length - 1 && word.toLowerCase().endsWith("a") && 
+                    h('span', { className: "absolute top-[0.65em] -right-[0.3em] text-[0.31em]" }, '*')
+                )
+            ));
+        };
+
+        const WordsPullUpMultiStyle = ({ segments, className }) => {
+            const ref = useRef(null);
+            const isInView = useInView(ref, { once: true, margin: "-100px" });
+            const allWords = segments.flatMap((s, sIdx) => 
+                s.text.split(" ").map((w, wIdx) => ({ word: w, className: s.className, id: `${sIdx}-${wIdx}` }))
+            );
+            return h(motion.div, {
+                ref, className: `inline-flex flex-wrap justify-center ${className}`,
+                initial: "hidden", animate: isInView ? "visible" : "hidden",
+                variants: { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } }
+            }, allWords.map((item) => 
+                h(motion.span, {
+                    key: item.id, className: `${item.className} mr-[0.25em] mb-[0.1em] inline-block`,
+                    variants: { visible: { opacity: 1, y: 0, transition: { ...PULL_UP_TRANSITION, ease: [0.16, 1, 0.3, 1] } }, hidden: { opacity: 0, y: 20 } }
+                }, item.word)
+            ));
+        };
+
+        const ScrollRevealText = ({ text, className }) => {
+            const containerRef = useRef(null);
+            const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start 0.8", "end 0.2"] });
+            const characters = text.split("");
+            return h('p', { ref: containerRef, className },
+                characters.map((char, i) => {
+                    const charProgress = i / characters.length;
+                    const opacity = useTransform(scrollYProgress, [Math.max(0, charProgress - 0.1), Math.min(1, charProgress + 0.05)], [0.2, 1]);
+                    return h(motion.span, { key: i, style: { opacity }, className: "inline-block" }, char === " " ? "\u00A0" : char);
+                })
+            );
+        };
+
+        // --- Main App ---
+
+        const App = () => {
+            const [scrolled, setScrolled] = useState(false);
+            
+            useEffect(() => {
+                const handleScroll = () => setScrolled(window.scrollY > 50);
+                window.addEventListener('scroll', handleScroll);
+                return () => window.removeEventListener('scroll', handleScroll);
+            }, []);
+
+            const navItems = [
+                { label: "Our story", id: "hero" },
+                { label: "Collective", id: "about" },
+                { label: "Workshops", id: "features" },
+                { label: "Programs", id: "features" },
+                { label: "Inquiries", id: "inquiries", custom: true }
+            ];
+
+            const handleNavClick = (e, item) => {
+                e.preventDefault();
+                if (item.custom) {
+                    alert("Contact: hello@prisma-studio.com");
+                    return;
+                }
+                const el = document.getElementById(item.id);
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+            };
+
+            return h('main', { className: "bg-black" },
+                // NAVBAR
+                h('nav', { 
+                    className: `fixed top-0 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${scrolled ? 'top-4' : 'top-0'}`
+                },
+                    h('div', { 
+                        className: `bg-black/80 backdrop-blur-md rounded-b-3xl px-6 py-3 md:px-10 flex items-center gap-4 sm:gap-8 md:gap-12 lg:gap-14 border border-white/10 ${scrolled ? 'rounded-full shadow-2xl' : 'rounded-t-none border-t-0'}`
+                    },
+                        navItems.map(item => 
+                            h('a', { 
+                                key: item.label, 
+                                href: `#${item.id}`,
+                                onClick: (e) => handleNavClick(e, item),
+                                className: "nav-link text-[10px] sm:text-xs md:text-sm font-medium transition-colors",
+                                style: { color: 'rgba(225, 224, 204, 0.8)' },
+                            }, item.label)
+                        )
+                    )
+                ),
+
+                // HERO
+                h('section', { id: "hero", className: "h-screen w-full p-4 md:p-6 relative" },
+                    h('div', { className: "h-full w-full rounded-2xl md:rounded-[2rem] overflow-hidden relative" },
+                        h('video', { autoPlay: true, loop: true, muted: true, playsInline: true, className: "absolute inset-0 w-full h-full object-cover" },
+                            h('source', { src: "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260405_170732_8a9ccda6-5cff-4628-b164-059c500a2b41.mp4", type: "video/mp4" })
+                        ),
+                        h('div', { className: "absolute inset-0 noise-overlay opacity-[0.7] mix-blend-overlay pointer-events-none" }),
+                        h('div', { className: "absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 pointer-events-none" }),
+                        h('div', { className: "absolute bottom-0 left-0 right-0 p-6 md:p-12 z-10" },
+                            h('div', { className: "grid grid-cols-1 md:grid-cols-12 gap-8 items-end" },
+                                h('div', { className: "md:col-span-8" },
+                                    h(WordsPullUp, { text: "Prisma", showAsterisk: true, className: "text-[26vw] sm:text-[24vw] md:text-[22vw] lg:text-[20vw] xl:text-[19vw] font-medium leading-[0.85] tracking-[-0.07em]", style: { color: "#E1E0CC" } })
+                                ),
+                                h('div', { className: "md:col-span-4 flex flex-col gap-6 md:pb-8" },
+                                    h(motion.p, { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.5, duration: 0.8 }, className: "text-primary/70 text-xs sm:text-sm md:text-base leading-[1.2]" }, 
+                                        "Prisma is a worldwide network of visual artists, filmmakers and storytellers bound not by place, status or labels but by passion and hunger to unlock potential."
+                                    ),
+                                    h(motion.button, { 
+                                        className: "group flex items-center gap-2 bg-primary rounded-full p-1.5 pr-1.5 pl-6 w-fit transition-all hover:gap-3 active:scale-95" 
+                                    }, 
+                                        h('span', { className: "text-black font-medium" }, "Join the lab"),
+                                        h('div', { className: "bg-black rounded-full w-10 h-10 flex items-center justify-center transition-transform group-hover:scale-110" },
+                                            h(Icon, { name: "ArrowRight", size: 20, className: "text-primary" })
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+                // ABOUT
+                h('section', { id: "about", className: "bg-black py-24 px-4 md:px-6" },
+                    e('div', { className: "max-w-6xl mx-auto bg-[#101010] rounded-[2rem] p-8 md:p-16 text-center flex flex-col items-center gap-12 border border-white/5" },
+                        e('div', { className: "flex flex-col gap-4" },
+                            e('span', { className: "text-primary text-[10px] sm:text-xs uppercase font-bold tracking-[0.2em]" }, "Visual arts"),
+                            h(WordsPullUpMultiStyle, {
+                                className: "text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl max-w-4xl mx-auto leading-[0.95] text-primary",
+                                segments: [
+                                    { text: "I am Marcus Chen,", className: "font-normal" },
+                                    { text: "a self-taught director.", className: "font-serif italic" },
+                                    { text: "I have skills in color grading, visual effects, and narrative design.", className: "font-normal" }
+                                ]
+                            })
+                        ),
+                        h(ScrollRevealText, {
+                            text: "Over the last seven years, I have worked with Parallax, a Berlin-based production house that crafts cinema, series, and Noir Studio in Paris. Together, we have created work that has earned international acclaim at several major festivals.",
+                            className: "text-[#DEDBC8]/80 text-sm sm:text-base md:text-lg max-w-3xl mx-auto leading-relaxed"
+                        })
+                    )
+                ),
+                // FEATURES
+                h('section', { id: "features", className: "min-h-screen bg-black relative py-24 px-4 md:px-6" },
+                    h('div', { className: "absolute inset-0 bg-noise opacity-[0.15] pointer-events-none" }),
+                    h('div', { className: "max-w-7xl mx-auto relative z-10" },
+                        h('div', { className: "mb-20 text-left" },
+                            h(WordsPullUpMultiStyle, {
+                                className: "text-xl sm:text-2xl md:text-3xl lg:text-4xl font-normal justify-start",
+                                segments: [
+                                    { text: "Studio-grade workflows for visionary creators.", className: "text-primary block w-full" },
+                                    { text: "Built for pure vision. Powered by art.", className: "text-gray-500 block w-full" }
+                                ]
+                            })
+                        ),
+                        h('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" },
+                            [
+                                { type: "video", video: "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_133058_0504132a-0cf3-4450-a370-8ea3b05c95d4.mp4", title: "Your creative canvas." },
+                                { type: "info", number: "01", title: "Project Storyboard.", icon: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260405_171918_4a5edc79-d78f-4637-ac8b-53c43c220606.png&w=1280&q=85", items: ["Visual timeline management", "Collaborative moodboarding", "Asset version control", "Direct client feedback"] },
+                                { type: "info", number: "02", title: "Smart Critiques.", icon: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260405_171741_ed9845ab-f5b2-4018-8ce7-07cc01823522.png&w=1280&q=85", items: ["AI-driven visual analysis", "Automated creative notes", "Professional tool integrations"] },
+                                { type: "info", number: "03", title: "Immersion Capsule.", icon: "https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260405_171809_f56666dc-c099-4778-ad82-9ad4f209567b.png&w=1280&q=85", items: ["Notification silencing", "Ambient soundscapes", "Schedule syncing"] }
+                            ].map((card, i) => h(FeatureCard, { key: i, card, index: i }))
+                        )
+                    )
+                )
+            );
+        };
+
+        const FeatureCard = ({ card, index }) => {
+            const ref = useRef(null);
+            const isInView = useInView(ref, { once: true, margin: "-100px" });
+            return h(motion.div, {
+                ref, initial: { opacity: 0, y: 20 }, animate: isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 },
+                transition: { delay: index * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] },
+                className: "relative rounded-3xl overflow-hidden bg-[#181818] h-[500px] flex flex-col group border border-white/5"
+            },
+                card.type === "video" ? h(Fragment, null,
+                    e('video', { autoPlay: true, loop: true, muted: true, playsInline: true, className: "absolute inset-0 w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000" }, h('source', { src: card.video, type: "video/mp4" })),
+                    e('div', { className: "absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" }),
+                    e('div', { className: "absolute bottom-8 left-8" }, e('h3', { className: "text-[#E1E0CC] text-2xl font-medium" }, card.title))
+                ) : e('div', { className: "p-8 flex flex-col h-full" },
+                    e('div', { className: "flex justify-between items-start mb-8" }, 
+                        e('div', { className: "p-3 bg-white/5 rounded-2xl" }, e('img', { src: card.icon, className: "w-10 h-10 rounded object-cover" })),
+                        e('span', { className: "text-primary/30 font-mono text-sm" }, card.number)
+                    ),
+                    e('h3', { className: "text-primary text-2xl font-medium mb-6" }, card.title),
+                    e('ul', { className: "flex flex-col gap-4 mb-auto" }, card.items.map((item, i) => e('li', { key: i, className: "flex items-start gap-3" }, e(Icon, { name: "Check", size: 18, className: "text-primary shrink-0 opacity-70" }), e('span', { className: "text-gray-400 text-sm leading-snug" }, item)))),
+                    e('button', { className: "flex items-center gap-2 text-primary text-sm font-bold uppercase tracking-widest hover:opacity-100 opacity-60 transition-all mt-8 group/btn" }, "Learn more", h(Icon, { name: "ArrowRight", size: 18, className: "-rotate-45 transition-transform group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1" }))
+                )
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        const e = React.createElement; // Keep alias for backward compatibility in render
+        root.render(h(App));
+    </script>
+</body>
+</html>
